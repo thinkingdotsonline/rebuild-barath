@@ -1,0 +1,5 @@
+import {openStore,id,now,hashPassword} from './store.js';
+const email=process.env.ADMIN_EMAIL,password=process.env.ADMIN_PASSWORD,name=process.env.ADMIN_NAME||'Platform Administrator';
+if(!email||!password||password.length<12){console.error('Set ADMIN_EMAIL and ADMIN_PASSWORD (at least 12 characters). Never commit credentials.');process.exit(1);}
+const s=openStore(process.env.DATABASE_PATH||'.data/app.sqlite');
+try {if(s.get('SELECT id FROM users WHERE email=?',email.toLowerCase()))throw Error('An account with that email already exists; no changes made.');const uid=id(),cid=id();s.transaction(()=>{s.run('INSERT INTO companies VALUES(?,?,?,?)',cid,'Rebuild Bharat',1,now());s.run('INSERT INTO users VALUES(?,?,?,?,?,?,?,?)',uid,name,email.toLowerCase(),hashPassword(password),'admin',cid,1,now());s.run('INSERT INTO memberships VALUES(?,?)',uid,cid);s.audit(uid,'admin.bootstrap','user',uid);});console.log('Administrator created. All categories are off until enabled by Super Admin.');}finally{s.db.close();}
