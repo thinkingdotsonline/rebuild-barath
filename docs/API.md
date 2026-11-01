@@ -24,7 +24,7 @@ All API responses are JSON except photo/document downloads. Errors are `{ "error
 | `/api/companies`, `/api/companies/members` | POST create company/add registered member |
 | `/api/notifications`, `/api/dashboard` | Scoped in-app updates and current aggregate counts |
 | `/api/settings`, `/api/audit` | Homepage copy; permission-gated immutable event history |
-| `/api/features` | Read service availability; Super Admin POST launch switches |
+| `/api/features` | Read all eight service flags; Super Admin POST boolean changes by service key (unknown keys/types rejected) |
 | `/api/auctions` | GET visible auctions; manager POST schedule |
 | `/api/auctions/:id/join` | POST participation request |
 | `/api/auctions/:id/participants` | Manager GET/POST bidder reviews |
@@ -35,4 +35,6 @@ All API responses are JSON except photo/document downloads. Errors are `{ "error
 
 Money is stored and submitted as integer paise, with INR currently supported. Browser forms accept rupees and convert to paise. IDs are UUIDs, with random public certificate identifiers. Company membership, assignments and explicit data-room grants scope private access; knowing an ID does not confer access.
 
-Workflow kinds: `inspection`, `repair`, `logistics`, `business`, `lead`, `transaction`, `invoice`. All critical mutations write actor/time/history events. SQLite triggers prohibit audit event edits and deletes through application queries. This does not protect against an attacker with unrestricted filesystem/database control.
+Workflow kinds: `liquidation`, `inspection`, `repair`, `logistics`, `business`, `lead`, `transaction`, `invoice`. All critical mutations write actor/time/history events. SQLite triggers prohibit audit event edits and deletes through application queries. This does not protect against an attacker with unrestricted filesystem/database control.
+
+Service keys: `trade`, `inspection`, `repair`, `liquidation`, `business`, `rentals`, `auctions`, `logistics`. Partial updates preserve unspecified flags. Switching off a service blocks new customer requests but retains existing company records and authorised internal operations. Historical public certificate verification and granted private document access remain available.

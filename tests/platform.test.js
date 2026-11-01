@@ -33,3 +33,44 @@ test('additional company creators can add registered members and unauthorized me
 test('certificate publication requires an approved report and exposes only approved summary fields',async()=>{assert.equal((await request('/certificates',{report_id:job,public_summary:'Public technical summary',scope:'Visual inspection only. No title review.'},alice.cookie)).status,403);const r=await request('/certificates',{report_id:job,public_summary:'Public technical summary',scope:'Visual inspection only. No title review.'},admin.cookie);assert.equal(r.status,201);let cert=await request('/certificates/'+r.data.id);assert.equal(cert.status,200);assert.equal(cert.data.public_summary,'Public technical summary');assert.ok(!('owner_id' in cert.data));assert.ok(!('data' in cert.data));assert.equal((await request('/certificates/'+r.data.id+'/revoke',{reason:'Report superseded following technical review'},admin.cookie)).status,200);cert=await request('/certificates/'+r.data.id);assert.equal(cert.data.status,'Revoked');});
 test('password changes require the current password and invalidate existing sessions',async()=>{const account=await register('PasswordUser');assert.equal((await request('/auth/password',{current_password:'wrong',new_password:'ReplacementPassword!123'},account.cookie)).status,403);assert.equal((await request('/auth/password',{current_password:password,new_password:'ReplacementPassword!123'},account.cookie)).status,200);assert.equal((await request('/me',null,account.cookie)).data.user,null);assert.equal((await request('/auth/login',{email:account.email,password:'ReplacementPassword!123'})).status,200);});
 test('category models persist and public filters include nested descendants and numeric prices',async()=>{const r=await request('/categories',{...cat,models:[{brand:'Example',name:'Model One'}],active:true},admin.cookie);assert.equal(r.status,200);assert.deepEqual(r.data.models,[{brand:'Example',name:'Model One'}]);assert.ok((await request('/assets?category='+cat.id)).data.some(a=>a.id===asset));assert.equal((await request('/assets?min=999999999')).data.length,0);assert.equal((await request('/assets?condition=Refurbished')).data.length,0);});
+test('all eight service launch controls preserve existing settings and reject invalid updates atomically',async()=>{
+ const keys=['trade','inspection','repair','liquidation','business','rentals','auctions','logistics'];
+ const before=(await request('/features')).data;assert.deepEqual(Object.keys(before).sort(),keys.sort());
+ for(const key of ['trade','inspection','repair','liquidation','business','logistics'])assert.equal(before[key],true);
+ assert.equal((await request('/features',{inspection:false},alice.cookie)).status,403);
+ assert.equal((await request('/features',{inspection:false,unknown:true},admin.cookie)).status,400);
+ assert.equal((await request('/features',{inspection:'false'},admin.cookie)).status,400);
+ assert.deepEqual((await request('/features')).data,before);
+ await request('/features',{inspection:false},admin.cookie);
+ const changed=(await request('/features')).data;assert.equal(changed.inspection,false);assert.equal(changed.auctions,before.auctions);assert.equal(changed.rentals,before.rentals);
+ await request('/features',{inspection:true},admin.cookie);
+});
+test('each disabled operational service blocks new customer requests but retains history and internal management',async()=>{
+ for(const kind of ['inspection','repair','liquidation','business','logistics']){
+  const created=await request('/records',{kind,title:'Existing '+kind+' request',data:{notes:'Retain when paused'}},alice.cookie);assert.equal(created.status,201,kind);
+  await request('/features',{[kind]:false},admin.cookie);
+  assert.equal((await request('/records',{kind,title:'Blocked '+kind+' request'},alice.cookie)).status,409,kind);
+  const retained=(await request('/records?kind='+kind,null,alice.cookie)).data.find(r=>r.id===created.data.id);assert.ok(retained,kind);assert.equal(retained.data.notes,'Retain when paused');
+  assert.equal((await request('/records',{id:created.data.id,title:'Continued '+kind+' request'},admin.cookie)).status,200,kind);
+  assert.equal((await request('/records',{kind,title:'Prepared internally '+kind},admin.cookie)).status,201,kind);
+  await request('/features',{[kind]:true},admin.cookie);
+  assert.equal((await request('/records',{kind,title:'Reopened '+kind+' request'},alice.cookie)).status,201,kind);
+ }
+});
+test('trade launch control hides public assets, blocks new submissions and restores retained listings',async()=>{
+ const photo=app.store.get('SELECT id FROM asset_photos WHERE asset_id=?',asset).id;
+ const draft=await request('/assets',{category_id:child.id,title:'Draft before trade pause',description:'Existing draft remains saved during pause.',location:'Kochi',price:50000,specs:{}},alice.cookie);assert.equal(draft.status,201);
+ await request('/features',{trade:false},admin.cookie);
+ assert.deepEqual((await request('/assets')).data,[]);
+ assert.equal((await request('/assets/'+asset)).status,404);
+ assert.equal((await request('/assets/'+asset+'/photos')).status,404);
+ assert.equal((await request('/photos/'+photo)).status,404);
+ assert.equal((await request('/assets/'+asset,null,alice.cookie)).status,200);
+ assert.ok((await request('/assets?scope=mine',null,alice.cookie)).data.some(a=>a.id===asset));
+ assert.equal((await request('/assets',{category_id:child.id,title:'Not accepted now',description:'No new listing when paused.',location:'Kochi',price:50000,specs:{}},alice.cookie)).status,409);
+ assert.equal((await request('/assets/'+draft.data.id+'/status',{status:'Submitted'},alice.cookie)).status,409);
+ const customer=await register('PausedTradeBuyer');assert.equal((await request('/enquiries',{asset_id:asset,message:'Bypass the hidden marketplace'},customer.cookie)).status,409);
+ await request('/features',{trade:true},admin.cookie);
+ assert.equal((await request('/assets/'+asset)).status,200);assert.equal((await request('/photos/'+photo)).status,200);
+ assert.equal((await request('/assets/'+draft.data.id+'/status',{status:'Submitted'},alice.cookie)).status,200);
+});

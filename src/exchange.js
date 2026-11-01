@@ -1,12 +1,13 @@
+import {serviceCatalog,serviceEnabled,serviceFlags} from '../public/services.js';
 import {id,now,can,inCompany,categoryVisible} from './store.js';
 export async function exchange({path,method,b,u,url,s,json,required,fail,money,text,audit}) {
  const manager=u&&(can(u,'auction.manage')||can(u,'asset.review'));
- const feature=key=>s.get('SELECT value FROM settings WHERE key=?',key)?.value==='true';
+ const feature=key=>serviceEnabled(s,key.replace(/^feature\./,''));
  const auctionAccess=a=>{const asset=s.get('SELECT * FROM assets WHERE id=?',a.asset_id);return asset&&categoryVisible(s,asset.category_id)&&['Approved','Published','Under offer'].includes(asset.review_status);};
  const managerRequired=()=>{required(u);if(!manager)fail(403,'Auction or operations manager permission required');};
  if(path==='/api/features') {
-  if(method==='GET'){json({auctions:feature('feature.auctions'),rentals:feature('feature.rentals')});return true;}
-  if(method==='POST'){required(u);if(u.role!=='admin')fail(403,'Super Admin permission required');s.transaction(()=>{for(const key of ['auctions','rentals'])if(typeof b[key]==='boolean')s.run('INSERT INTO settings VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value','feature.'+key,String(b[key]));audit(u,'features.update','settings','features',b);});json({ok:true});return true;}
+  if(method==='GET'){json(serviceFlags(s));return true;}
+  if(method==='POST'){required(u);if(u.role!=='admin')fail(403,'Super Admin permission required');for(const [key,value] of Object.entries(b))if(!serviceCatalog.some(service=>service.key===key)||typeof value!=='boolean')fail(400,'Provide known service keys with boolean values');s.transaction(()=>{for(const key of serviceCatalog.map(service=>service.key))if(typeof b[key]==='boolean')s.run('INSERT INTO settings VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value','feature.'+key,String(b[key]));audit(u,'features.update','settings','features',b);});json({ok:true});return true;}
  }
  if(path.startsWith('/api/auctions')) {
   if(!feature('feature.auctions')&&!manager)fail(404,'Auctions have not launched yet');

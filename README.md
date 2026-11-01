@@ -48,7 +48,7 @@ unset ADMIN_PASSWORD
 npm start
 ```
 
-This creates an administrator without printing or saving its password in source. All categories and extra services start **off** in a clean database. This bootstrap is for development/staging until the production requirements below are completed.
+This creates an administrator without printing or saving its password in source. All categories start **off** in a clean database. The six core service divisions retain their existing enabled behavior; auctions and rentals default to off. Super Admin can independently pause or launch all eight divisions in Service launch controls. Previously saved switches are preserved. This bootstrap is for development/staging until the production requirements below are completed.
 
 ## What works
 
@@ -61,6 +61,7 @@ This creates an administrator without printing or saving its password in source.
 - Inspection requests, scheduling, assignment, partner findings, limitations and reviewer approval. Explicitly approved public certificate summaries, public status verification, revocation and printable reports (browser “Save as PDF”).
 - Refurbishment, logistics, CRM, business mandates, transaction milestones and manual invoice/payment-reference tracking. These are persisted operational workflows, not external service integrations or a full accounting system.
 - Confidential business data rooms: company-owned document attachment, registered-buyer access grants, externally signed NDA references, expiry/revocation and audited downloads.
+- Service launch controls cover **Trade, Certified inspections, Renew refurbishment, Liquidation, Business sales, Lease rentals, Auctions and Logistics**. Disabling a service removes its public promotions/pages and blocks new customer requests, while retaining internal records and ongoing work. Category controls remain independent. Factory liquidation has its own scoped project-request workflow.
 - Optional auctions: independent Super Admin launch switch, schedules, reserve prices, manual participant approval, server-time validation, atomic minimum bids, two-minute anti-sniping extension and manager-recorded results. Refresh updates current bid values; WebSocket streaming is not included.
 - Optional rentals: independent launch switch, daily rates/terms/deposit records, date requests, inclusive-day totals, conflict-checked confirmations and pickup/return states. No deposit collection.
 - In-app notifications, role-specific dashboard counts, CMS homepage copy, private company document vault and append-only audit logs.
@@ -90,7 +91,8 @@ The browser script creates and deletes its own temporary demo database and never
 
 - `src/server.js`: HTTP application, authentication, authorisation, marketplace and service routes.
 - `src/store.js`: SQLite schema, additive local migrations, category visibility, permissions, typed validation and password helpers.
-- `src/exchange.js`: auction and rental rules and endpoints.
+- `src/exchange.js`: service-launch API plus auction and rental rules and endpoints.
+- `public/services.js`: shared catalog of all eight service divisions and backward-compatible launch defaults.
 - `src/admin.js`, `src/seed.js`: administrator bootstrap and explicit demonstration setup.
 - `public/`: responsive client, design system, local SVG icons and reference imagery.
 - `tests/`: isolated HTTP/business-rule regression suite.

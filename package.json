@@ -10,7 +10,7 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "test": "node --test tests/*.test.js",
-    "check": "node --check src/server.js && node --check src/store.js && node --check src/exchange.js && node --check src/admin.js && node --check src/seed.js && node --check public/app.js",
+    "check": "node --check src/server.js && node --check src/store.js && node --check src/exchange.js && node --check src/admin.js && node --check src/seed.js && node --check public/app.js && node --check public/services.js",
     "seed:demo": "node src/seed.js",
     "admin:create": "node src/admin.js",
     "test:browser": "node scripts/browser-check.cjs"
